@@ -89,6 +89,7 @@ Murk supports keyboard, mouse, and gamepads:
 | **Attack / Focus** | `Left Click` on an enemy | Closes into diagonal firing line and shoots |
 | **Fire (Auto-Aim)** | `Space` / `J` / `Ctrl` | Fires with aim assist along 4 diagonals |
 | **Fire Toward Cursor** | `Right Click` | Shoots directly toward mouse position |
+| **Zoom In / Out** | `Mouse Wheel` (or `+` / `-`) | Adjust camera view distance |
 | **Use Ladder / Stairs** | `E` / `Enter` (or click ladder) | Travel between dungeon floors |
 | **Ring of Protection** | `R` | Activates invulnerability shield |
 | **Drop Relic** | `Q` | Places the carried relic down |
