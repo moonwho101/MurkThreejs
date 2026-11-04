@@ -1,3 +1,5 @@
+// Copyright (c) Mark Longo 2026
+
 /**
  * Murk dungeon model: episode parsing, procedural generation and grid queries.
  * Generation follows the original C++ (MurkInit.cpp): winding single-width tunnels carved by

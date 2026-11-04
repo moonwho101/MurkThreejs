@@ -1,3 +1,5 @@
+// Copyright (c) Mark Longo 2026
+
 /**
  * Murk audio: Web Audio playback of the original WAV effects plus an ambient loop.
  */

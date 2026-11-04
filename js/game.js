@@ -1,3 +1,5 @@
+// Copyright (c) Mark Longo 2026
+
 /**
  * Murk game: rules, AI, input and UI. Ports the arcade logic of the original (MurkThink.cpp, Murk.cpp)
  * to a real-time loop with click-to-move, auto-fire, exploration fog and a minimap.

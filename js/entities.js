@@ -1,3 +1,5 @@
+// Copyright (c) Mark Longo 2026
+
 /**
  * Murk entities: characters, monsters and missiles, with the stat tables from the original game.
  */

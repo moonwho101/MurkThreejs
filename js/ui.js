@@ -1,3 +1,5 @@
+// Copyright (c) Mark Longo 2026
+
 /**
  * Murk UI and progression: settings, save/continue, pause menu, level-up talents, the full map,
  * help and the objective guide arrow.

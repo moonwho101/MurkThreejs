@@ -1,3 +1,5 @@
+// Copyright (c) Mark Longo 2026
+
 /**
  * Murk controls: keyboard, mouse and gamepad.
  *
