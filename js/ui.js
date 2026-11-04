@@ -9,7 +9,7 @@ const SETTINGS_KEY = 'murk.settings.v1';
 const SAVE_KEY = 'murk.save.v1';
 const BEST_KEY = 'murk.best.v1';
 
-const DEFAULT_SETTINGS = { sfx: 1, amb: 1, aim: true, shake: true, hints: true, muted: false };
+const DEFAULT_SETTINGS = { sfx: 1, amb: 1, aim: true, shake: true, hints: true, muted: false, autoStairs: true };
 
 // Level-up talents. `can` gates ones that have hit a sensible cap; `max` limits how often one can be taken.
 const PERKS = [
@@ -161,6 +161,7 @@ Object.assign(MurkGame.prototype, {
     bindToggle('set-aim', 'aim');
     bindToggle('set-shake', 'shake');
     bindToggle('set-hints', 'hints');
+    bindToggle('set-autostairs', 'autoStairs');
 
     $('map-close').addEventListener('click', () => this.closeMap());
     $('map-prev').addEventListener('click', () => this.mapFloor(-1));
@@ -198,6 +199,7 @@ Object.assign(MurkGame.prototype, {
     onOff('set-aim', 'Aim assist', s.aim);
     onOff('set-shake', 'Screen shake', s.shake);
     onOff('set-hints', 'Control hints', s.hints);
+    onOff('set-autostairs', 'Auto-climb', s.autoStairs);
     $('set-mute').textContent = s.muted ? 'Sound: Off' : 'Sound: On';
     $('set-fs').textContent = document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen';
   },
@@ -302,7 +304,7 @@ Object.assign(MurkGame.prototype, {
       row('Click', 'Walk to a tile. Hold the button to follow the cursor, or click a monster to close in and attack it.') +
       row(kb('Space') + ' / ' + kb('J'), 'Fire. Auto-aims at the nearest monster lined up on a diagonal, otherwise straight ahead.') +
       row('Right-click', 'Fire toward the cursor.') +
-      row(kb('E') + ' / ' + kb('Enter'), 'Use a ladder (or just click it).') +
+      row(kb('E') + ' / ' + kb('Enter'), 'Use a ladder (or double-click it).') +
       row(kb('R') + ' &nbsp; ' + kb('Q'), 'Ring of Protection &nbsp;\u00B7&nbsp; set the relic down.') +
       row(kb('M') + ' / ' + kb('Tab'), 'Full map of the explored floor.') +
       row(kb('Esc') + ' &nbsp; ' + kb('F') + ' &nbsp; ' + kb('N'), 'Pause menu &nbsp;\u00B7&nbsp; fullscreen &nbsp;\u00B7&nbsp; mute.') +
@@ -407,8 +409,17 @@ Object.assign(MurkGame.prototype, {
       }
     });
     if (this.home && lvl === this.home.lvl) mark(this.home.x, this.home.y, '#4fe08a', sx * 0.9);
+    if (this.team2Lair && lvl === this.team2Lair.lvl && ds.cell(this.team2Lair.x, this.team2Lair.y, lvl).explored) {
+      mark(this.team2Lair.x, this.team2Lair.y, '#55aaff', sx * 0.9);
+    }
     for (const r of ds.relics) {
-      if (r.lvl === lvl && !r.carrier && ds.cell(r.x, r.y, lvl).explored) mark(r.x, r.y, r.id === 1 ? '#ff5544' : '#55aaff', sx * 0.8);
+      if (r.lvl === lvl) {
+        if (!r.carrier && ds.cell(r.x, r.y, lvl).explored) {
+          mark(r.x, r.y, '#55aaff', sx * 0.8);
+        } else if (r.carrier && ds.cell(r.carrier.x, r.carrier.y, lvl).explored) {
+          mark(r.carrier.x, r.carrier.y, '#55aaff', sx * 0.8);
+        }
+      }
     }
     if (this.player.lvl === lvl) mark(this.player.x, this.player.y, '#fff36a', sx * 0.9);
     document.getElementById('map-prev').disabled = lvl <= 1;

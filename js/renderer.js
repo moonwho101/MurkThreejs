@@ -33,13 +33,14 @@ const ITEM_ART = {
   a: { rect: [450, 0, 113, 97], dy: 0 }
 };
 
-// Home pad art per class pad index, and the monsters' lair marker.
+// Home pad art per class pad index, the monsters' lair marker, and team 2 lair pad.
 const PAD_ART = [
-  [113, 294, 112, 97], // green
-  [337, 294, 112, 97], // blue
-  [449, 294, 112, 97], // dark green
-  [561, 294, 112, 97], // cyan
-  [224, 294, 113, 97] // lair
+  [113, 294, 112, 97], // 0: green (player circle icon, col 1)
+  [337, 294, 112, 97], // 1: blue (thief pad, col 3)
+  [449, 294, 112, 97], // 2: dark green (wizard pad, col 4)
+  [561, 294, 112, 97], // 3: cyan (cleric pad, col 5)
+  [224, 294, 113, 97], // 4: monster lair (col 2)
+  [337, 294, 112, 97]  // 5: team 2 lair pad (col 3: icon columns over from player circle icon in dungeon.png)
 ];
 
 const PIT_ART = [[452, 490, 113, 98], [565, 490, 113, 98], [678, 490, 113, 98]];

@@ -245,12 +245,9 @@ class DungeonSystem {
   }
 
   assignRelics(gametype) {
-    // Relic 1 (red chest) sits on the first floor, relic 2 (blue chest) is hidden deeper.
-    if (gametype !== 1) {
-      const p = this.randomFloor(1);
-      if (p) this.relics.push({ id: 1, x: p.x, y: p.y, lvl: 1, carrier: null });
-    }
-    const deepLvl = this.randomNum(this.maxlevel - 1) + 2;
+    // Red treasure (relic 1) is no longer placed in the game.
+    // Both the player and rivals seek the blue treasure (relic 2), hidden deeper in the dungeon.
+    const deepLvl = this.maxlevel > 1 ? this.randomNum(this.maxlevel - 1) + 2 : 1;
     const p2 = this.randomFloor(deepLvl) || this.randomFloor(this.maxlevel);
     if (p2) this.relics.push({ id: 2, x: p2.x, y: p2.y, lvl: p2.lvl, carrier: null });
   }

@@ -103,6 +103,7 @@ class Entity {
     this.stairTimer = 0;
     this.stairGoal = null;
     this.stairWander = null;
+    this.isLeader = !!cfg.isLeader;
   }
 
   get isMonster() {
