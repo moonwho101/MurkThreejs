@@ -99,6 +99,10 @@ class Entity {
     this.lifesteal = 0;
     this.perks = {};
     this.noticed = false;
+    this.stairCd = 0;
+    this.stairTimer = 0;
+    this.stairGoal = null;
+    this.stairWander = null;
   }
 
   get isMonster() {

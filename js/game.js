@@ -356,10 +356,17 @@ class MurkGame {
     this.dom.fade.classList.add('on');
     this.audio.play(fall ? 'Protection.wav' : 'walk.wav', 0.5);
     setTimeout(() => {
+      const from = this.lvl;
+      const followers = this.entities.filter((e) => e.kind === 'ally' && e.alive && !e.asleep && e.lvl === from &&
+        Math.abs(e.x - this.player.x) + Math.abs(e.y - this.player.y) <= 5);
       this.projectiles = [];
       this.player.shots = 0;
       this.player.teleport(x, y, target);
       this.entities.forEach((e) => { if (e !== this.player) e.shots = 0; });
+      for (const ally of followers) {
+        const spot = this.freeSpotNear(x, y, target, ally);
+        if (spot) { ally.teleport(spot.x, spot.y, target); ally.stairCd = 3; ally.restTimer = 0.3; }
+      }
       this.lvl = target;
       this.setupLevelView(true);
       this.onPlayerArrive();
@@ -367,6 +374,90 @@ class MurkGame {
       this.dom.fade.classList.remove('on');
       setTimeout(() => { this.transition = false; }, 200);
     }, 260);
+  }
+
+  // Nearest walkable cell to (x, y) on `lvl` that no living entity occupies.
+  freeSpotNear(x, y, lvl, ignore) {
+    for (let r = 0; r <= 3; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (this.ds.walkable(nx, ny, lvl) && !this.entityAt(nx, ny, lvl, ignore)) return { x: nx, y: ny };
+        }
+      }
+    }
+    return null;
+  }
+
+  // Moves a non-player entity through the stairs at (sx, sy) on its level to the adjoining level.
+  entityTakeStairs(e, sx, sy) {
+    const cell = this.ds.cell(sx, sy, e.lvl);
+    if (cell.type !== 's') return false;
+    const target = cell.stair === 'down' ? e.lvl + 1 : e.lvl - 1;
+    if (target < 1 || target > this.ds.maxlevel) return false;
+    const spot = this.freeSpotNear(sx, sy, target, e);
+    if (!spot) return false;
+    const wasVisible = e.lvl === this.lvl;
+    if (wasVisible) this.playAt('walk.wav', e, 0.4);
+    e.teleport(spot.x, spot.y, target);
+    e.shots = 0;
+    e.windup = 0;
+    e.stairCd = 4;
+    e.restTimer = 0.4;
+    e.stairWander = null;
+    if (target === this.lvl) {
+      this.playAt('walk.wav', e, 0.4);
+      this.popText(e, '!', '#ffd24a');
+    }
+    return true;
+  }
+
+  // Awake creatures on other floors keep playing: they walk to the nearest stairs that lead toward the player.
+  updateOffLevel(e, dt) {
+    if (e.asleep || e.stairCd > 0) { e.stairTimer = 0; return; }
+    const p = this.player;
+    const diff = p.lvl - e.lvl;
+    const follows = e.kind === 'ally' ? diff !== 0 : Math.abs(diff) === 1 &&
+      Math.abs(e.x - p.x) + Math.abs(e.y - p.y) <= 14;
+    if (!follows) { e.stairTimer = 0; return; }
+    const kind = diff > 0 ? 'down' : 'up';
+    if (!e.stairTimer) {
+      let best = null;
+      let bestD = Infinity;
+      for (const s of this.ds.findStairs(e.lvl, kind)) {
+        const d = Math.abs(s.x - e.x) + Math.abs(s.y - e.y);
+        if (d < bestD) { bestD = d; best = s; }
+      }
+      if (!best) return;
+      e.stairGoal = best;
+      e.stairTimer = Math.max(0.5, bestD * e.tileTime * 1.2);
+      return;
+    }
+    e.stairTimer -= dt;
+    if (e.stairTimer > 0) return;
+    e.stairTimer = 0;
+    const s = e.stairGoal;
+    e.stairGoal = null;
+    if (s) {
+      e.x = s.x;
+      e.y = s.y;
+      if (!this.entityTakeStairs(e, s.x, s.y)) e.stairCd = 1.5;
+    }
+  }
+
+  // Walks toward the closest stairs of the given kind; returns true if it acted.
+  seekStairs(e, kind) {
+    const cell = this.ds.cell(e.x, e.y, e.lvl);
+    if (cell.type === 's' && cell.stair === kind) return this.entityTakeStairs(e, e.x, e.y);
+    let best = null;
+    for (const s of this.ds.findStairs(e.lvl, kind)) {
+      const path = this.ds.findPath(e.lvl, e.x, e.y, s.x, s.y, (x, y) => !!this.entityAt(x, y, e.lvl, e), 300);
+      if (path && path.length && (!best || path.length < best.length)) best = path;
+    }
+    if (!best) return false;
+    return this.tryStep(e, dirFromDelta(best[0].x - e.x, best[0].y - e.y));
   }
 
   updatePits(dt) {
@@ -860,6 +951,7 @@ class MurkGame {
     }
 
     if (goal) {
+      e.stairWander = null;
       const blocked = (x, y) => !!this.entityAt(x, y, e.lvl, e);
       const path = this.ds.findPath(e.lvl, e.x, e.y, goal.x, goal.y, blocked, 500);
       if (path && path.length > 1) {
@@ -868,6 +960,16 @@ class MurkGame {
       } else if (path && path.length === 1) {
         e.dir = dirFromDelta(goal.x - e.x, goal.y - e.y);
         return;
+      }
+    }
+    if (e.kind !== 'ally' && e.stairCd <= 0) {
+      if (!e.stairWander && Math.random() < 0.04) {
+        const kinds = ['up', 'down'].filter((k) => (k === 'up' ? e.lvl > 1 : e.lvl < this.ds.maxlevel));
+        e.stairWander = kinds[this.randInt(kinds.length)];
+      }
+      if (e.stairWander) {
+        if (this.seekStairs(e, e.stairWander)) return;
+        e.stairWander = null;
       }
     }
     if (Math.random() < 0.55) {
@@ -889,6 +991,7 @@ class MurkGame {
         }
         continue;
       }
+      if (e.stairCd > 0) e.stairCd -= dt;
       const arrived = e.update(dt);
       if (e === this.player) {
         if (arrived) {
@@ -902,6 +1005,7 @@ class MurkGame {
       }
       if (e.lvl !== this.lvl || e.asleep) {
         e.windup = 0;
+        if (e.lvl !== this.lvl) this.updateOffLevel(e, dt);
         continue;
       }
       if (e.windup > 0) {
