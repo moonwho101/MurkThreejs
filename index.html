@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Murk - Isometric Dungeon Crawler</title>
+  <meta name="description" content="Murk: a 1998 isometric dungeon crawler reborn in the browser. Pick a hero, descend, steal the relic and escape.">
+  <meta name="theme-color" content="#07050b">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+
+    html, body {
+      width: 100%; height: 100%; overflow: hidden; background: #000;
+      font-family: Georgia, 'Palatino Linotype', 'Book Antiqua', serif; color: #eadfca;
+    }
+
+    #game-container { position: relative; width: 100vw; height: 100vh; background: #000; }
+    #canvas-container { position: absolute; inset: 0; z-index: 1; }
+    canvas#scene, #canvas-container canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; cursor: crosshair; }
+
+    #vignette {
+      position: absolute; inset: 0; z-index: 4; pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.55) 80%, rgba(0, 0, 0, 0.92) 100%);
+    }
+    #flash {
+      position: absolute; inset: 0; z-index: 5; pointer-events: none; opacity: 0;
+      background: radial-gradient(ellipse at center, rgba(160, 0, 0, 0) 30%, rgba(200, 0, 0, 0.55) 100%);
+    }
+    #flash.on { animation: hit-flash 0.45s ease-out; }
+    @keyframes hit-flash { from { opacity: 1; } to { opacity: 0; } }
+    #fade { position: absolute; inset: 0; z-index: 7; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+    #fade.on { opacity: 1; }
+
+    .hidden { display: none !important; }
+
+    .screen-overlay {
+      position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; background: rgba(0, 0, 0, 0.88);
+    }
+
+    /* ---- splash ---- */
+    #splash-screen { background: #000; cursor: pointer; }
+    #splash-img {
+      max-width: 92vw; max-height: 76vh; object-fit: contain; image-rendering: auto;
+      filter: drop-shadow(0 0 28px rgba(190, 40, 40, 0.55));
+    }
+    .press-start {
+      margin-top: 22px; font-size: 20px; font-weight: bold; letter-spacing: 4px; color: #ffcc55;
+      text-shadow: 0 0 12px #ff6a00; animation: blink 1.1s infinite alternate; opacity: 0;
+    }
+    #splash-screen.ready .press-start { opacity: 1; }
+    @keyframes blink { from { opacity: 1; } to { opacity: 0.25; } }
+
+    /* ---- character select ---- */
+    #select-screen { background: radial-gradient(circle at center, #1d1626 0%, #07050b 100%); }
+    .select-title { font-size: 30px; color: #ffd45a; text-shadow: 0 0 14px rgba(255, 200, 80, 0.5); margin-bottom: 26px; letter-spacing: 5px; }
+    .char-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; width: min(920px, 92vw); }
+    .char-card {
+      background: linear-gradient(180deg, #2b2438 0%, #151120 100%); border: 2px solid #5a4b73; border-radius: 8px;
+      padding: 16px 12px; display: flex; flex-direction: column; align-items: center; cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    }
+    .char-card:hover, .char-card.selected { border-color: #ffd45a; transform: translateY(-5px); box-shadow: 0 8px 24px rgba(255, 205, 80, 0.28); }
+    .char-card.selected { background: linear-gradient(180deg, #43335e 0%, #211833 100%); }
+    .char-avatar-box {
+      width: 112px; height: 112px; border: 2px solid #3c3150; border-radius: 4px; margin-bottom: 12px;
+      background: radial-gradient(circle, #2a2336 0%, #0d0a14 100%); display: flex; justify-content: center; align-items: center;
+    }
+    .char-avatar { width: 96px; height: 96px; image-rendering: pixelated; }
+    .char-name { font-size: 19px; font-weight: bold; color: #fff; margin-bottom: 6px; letter-spacing: 2px; }
+    .char-desc { font-size: 12px; color: #bbb; text-align: center; line-height: 1.4; margin-bottom: 12px; min-height: 50px; }
+    .char-stats { font-size: 12px; width: 100%; color: #9fe2bf; }
+    .stat-row { display: flex; justify-content: space-between; margin: 2px 0; }
+    .btn-start {
+      margin-top: 30px; padding: 12px 44px; font-size: 20px; font-weight: bold; font-family: inherit; color: #1a1208;
+      background: linear-gradient(180deg, #ffe27a, #e0a82e); border: 2px solid #fff0b0; border-radius: 4px; cursor: pointer;
+      box-shadow: 0 4px 18px rgba(255, 205, 80, 0.4); letter-spacing: 2px;
+    }
+    .btn-start:hover { filter: brightness(1.12); transform: scale(1.03); }
+
+    /* ---- modal panel ---- */
+    #modal-screen { z-index: 30; background: rgba(4, 3, 8, 0.78); backdrop-filter: blur(3px); }
+    .panel {
+      background: linear-gradient(180deg, rgba(38, 29, 50, 0.98), rgba(15, 11, 22, 0.99));
+      border: 2px solid #6a5a84; border-radius: 12px; position: relative;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.85), inset 0 0 40px rgba(120, 90, 170, 0.12);
+      animation: panel-in 0.18s ease-out;
+    }
+    .panel::before {
+      content: ''; position: absolute; inset: 6px; border: 1px solid rgba(255, 212, 90, 0.22); border-radius: 8px; pointer-events: none;
+    }
+    @keyframes panel-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
+    .modal-box { width: 640px; max-width: 94vw; padding: 34px 44px 30px; }
+    .modal-title { text-align: center; font-size: 24px; margin-bottom: 18px; color: #ffd45a; letter-spacing: 4px; text-shadow: 0 0 14px rgba(255, 200, 80, 0.35); }
+    .modal-title::after { content: ''; display: block; width: 120px; height: 2px; margin: 12px auto 0; background: linear-gradient(90deg, transparent, #ffd45a, transparent); }
+    .modal-content { font-size: 16px; line-height: 1.7; max-height: 58vh; overflow-y: auto; color: #eadfca; text-align: center; }
+    .modal-content .objective { font-size: 17px; font-weight: bold; color: #fff4d8; }
+    .modal-content .icon { display: inline-block; vertical-align: middle; margin: -8px 2px; image-rendering: pixelated; background-repeat: no-repeat; }
+    .modal-hint { margin-top: 14px; font-size: 13px; line-height: 1.6; font-weight: normal; color: #b3a6c9; }
+    .modal-hint b.gold { color: #ffd45a; }
+    .stat-grid { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 8px 14px; align-items: center; text-align: left; max-width: 480px; margin: 6px auto 0; font-size: 14px; color: #b3a6c9; }
+    .stat-grid b { color: #fff; font-size: 17px; text-align: right; }
+    .btn {
+      display: block; margin: 22px auto 0; padding: 10px 36px; font-family: inherit; font-size: 16px; font-weight: bold; letter-spacing: 2px; cursor: pointer;
+      color: #1a1208; background: linear-gradient(180deg, #ffe27a, #e0a82e); border: 2px solid #fff0b0; border-radius: 6px;
+      box-shadow: 0 4px 18px rgba(255, 205, 80, 0.3); transition: filter 0.12s, transform 0.12s;
+    }
+    .btn:hover, .btn:focus-visible { filter: brightness(1.12); transform: translateY(-1px); outline: none; }
+    .btn.secondary { color: #eadfca; background: linear-gradient(180deg, #3a2f4c, #241c33); border-color: #6a5a84; box-shadow: none; }
+    .btn.secondary:hover { border-color: #ffd45a; color: #ffd45a; }
+    .btn:disabled { opacity: 0.35; cursor: default; filter: none; transform: none; }
+    .modal-close { margin-top: 24px; }
+
+    .help { display: flex; flex-direction: column; gap: 9px; text-align: left; font-size: 14px; font-weight: normal; }
+    .kv { display: grid; grid-template-columns: 190px 1fr; gap: 14px; align-items: baseline; }
+    .kv .keys { color: #ffd45a; font-weight: bold; text-align: right; }
+    .kv .what { color: #d6cbe4; }
+    kbd {
+      display: inline-block; min-width: 24px; padding: 1px 7px; margin: 0 1px; text-align: center; font: bold 12px Georgia, serif; color: #fff4d8;
+      background: #2c2240; border: 1px solid #7a68a0; border-bottom-width: 3px; border-radius: 5px;
+    }
+
+    /* ---- pause menu ---- */
+    #pause-screen, #perk-screen, #map-screen { z-index: 32; background: rgba(4, 3, 8, 0.8); backdrop-filter: blur(3px); }
+    .pause-box { width: 440px; max-width: 94vw; padding: 30px 38px 28px; }
+    .pause-box h2 { text-align: center; color: #ffd45a; letter-spacing: 5px; font-size: 22px; margin-bottom: 18px; }
+    .pause-box .btn { width: 100%; margin: 8px 0 0; padding: 9px 12px; font-size: 13px; letter-spacing: 1px; white-space: nowrap; }
+    .pause-box .btn.primary { padding: 12px 16px; font-size: 16px; letter-spacing: 3px; }
+    .pause-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+    #set-hints { grid-column: span 2; }
+    .btn.toggle.on { border-color: #6cff9a99; color: #c9ffd9; }
+    .slider-row { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 10px; margin-top: 12px; font-size: 13px; color: #b3a6c9; }
+    input[type=range] { width: 100%; accent-color: #ffd45a; cursor: pointer; }
+    .pause-sep { height: 1px; margin: 16px 0 6px; background: linear-gradient(90deg, transparent, #6a5a84, transparent); }
+
+    /* ---- level-up talents ---- */
+    .perk-box { width: 780px; max-width: 96vw; padding: 30px 34px 26px; text-align: center; }
+    .perk-box h2 { color: #ffd45a; letter-spacing: 6px; font-size: 26px; text-shadow: 0 0 16px rgba(255, 200, 80, 0.45); }
+    .perk-sub { margin: 6px 0 20px; color: #b3a6c9; font-size: 14px; }
+    .perk-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .perk-card {
+      position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 22px 12px 16px; cursor: pointer; font-family: inherit; color: #eadfca;
+      background: linear-gradient(180deg, #2b2438, #151120); border: 2px solid #5a4b73; border-radius: 10px; transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+    }
+    .perk-card:hover, .perk-card:focus-visible { transform: translateY(-5px); border-color: #ffd45a; box-shadow: 0 8px 24px rgba(255, 205, 80, 0.25); outline: none; }
+    .perk-key { position: absolute; top: 8px; left: 10px; font-size: 12px; color: #8f82a8; }
+    .perk-icon { font-size: 34px; color: #ffd45a; line-height: 1; text-shadow: 0 0 12px rgba(255, 200, 80, 0.5); }
+    .perk-name { font-size: 17px; font-weight: bold; color: #fff; letter-spacing: 1px; }
+    .perk-desc { font-size: 13px; color: #c3b8d6; line-height: 1.45; min-height: 38px; }
+    .perk-rank { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #9fe2bf; }
+
+    /* ---- full map ---- */
+    .map-box { padding: 22px 26px 20px; text-align: center; max-width: 96vw; }
+    .map-box h2 { color: #ffd45a; letter-spacing: 5px; font-size: 20px; }
+    #map-floor { margin: 4px 0 10px; font-size: 14px; color: #b3a6c9; }
+    #bigmap { display: block; margin: 0 auto; background: #0a0810; border: 1px solid #4a3d5e; border-radius: 6px; }
+    .map-bar { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+    .map-bar .btn { margin: 0; padding: 7px 20px; font-size: 13px; }
+    .legend { font-size: 12px; color: #b3a6c9; display: flex; gap: 14px; }
+    .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; border: 1px solid #000; }
+
+    /* ---- HUD ---- */
+    #hud { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+    #hud-episode {
+      position: absolute; top: 12px; left: 14px; padding: 7px 14px; background: rgba(12, 9, 18, 0.78);
+      border: 1px solid #4a3d5e; border-radius: 6px; font-size: 14px; letter-spacing: 1px; line-height: 1.5;
+    }
+    #hud-episode b { color: #ffd45a; }
+    #minimap {
+      position: absolute; top: 12px; right: 14px; width: 220px; height: 130px; background: rgba(10, 8, 15, 0.72);
+      border: 1px solid #4a3d5e; border-radius: 6px;
+    }
+    #log { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; width: 56vw; }
+    .log-line {
+      background: rgba(18, 14, 26, 0.86); border: 1px solid #ffd45a66; color: #ffe9a8; padding: 5px 18px; border-radius: 16px;
+      font-size: 14px; text-align: center; transition: opacity 0.7s; text-shadow: 0 1px 2px #000;
+    }
+    .log-line.good { border-color: #6cff9a99; color: #c9ffd9; }
+    .log-line.warn { border-color: #ff6a5a99; color: #ffd0c8; }
+    .log-line.fade { opacity: 0; }
+    #prompt {
+      position: absolute; bottom: 132px; left: 50%; transform: translateX(-50%); padding: 6px 18px; border-radius: 14px;
+      background: rgba(18, 14, 26, 0.86); border: 1px solid #e0a040; color: #ffd890; font-size: 14px; display: none;
+    }
+    #prompt.on { display: block; }
+    #controls-hint {
+      position: absolute; top: 62px; left: 14px; font-size: 11px; line-height: 1.7; color: #a89fbc; background: rgba(10, 8, 15, 0.7);
+      padding: 6px 10px; border-radius: 4px; animation: hint-fade 1s ease 30s forwards;
+    }
+    @keyframes hint-fade { to { opacity: 0; } }
+
+    /* points toward the home pad while carrying the relic */
+    #guide {
+      position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; transition: opacity 0.25s;
+      transform: rotate(var(--a, 0rad)) translateX(124px);
+    }
+    #guide.on { opacity: 0.92; }
+    #guide::before {
+      content: ''; position: absolute; left: -12px; top: -10px; width: 0; height: 0;
+      border-left: 22px solid #6cff9a; border-top: 10px solid transparent; border-bottom: 10px solid transparent;
+      filter: drop-shadow(0 0 8px rgba(108, 255, 154, 0.9)); animation: guide-pulse 0.9s infinite alternate;
+    }
+    @keyframes guide-pulse { from { transform: translateX(-4px); } to { transform: translateX(6px); } }
+
+    #hud-panel {
+      position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); pointer-events: auto;
+      display: flex; align-items: center; gap: 18px; padding: 8px 18px 8px 10px; border-radius: 10px;
+      background: linear-gradient(180deg, rgba(34, 26, 44, 0.94), rgba(14, 11, 20, 0.96));
+      border: 2px solid #6a5a84; box-shadow: 0 6px 26px rgba(0, 0, 0, 0.8), inset 0 0 12px rgba(120, 90, 170, 0.25);
+    }
+    #hud-portrait { width: 64px; height: 64px; background: radial-gradient(circle, #3a2f4c, #120e1a); border: 2px solid #8a77aa; border-radius: 6px; image-rendering: pixelated; }
+    .bars { display: flex; flex-direction: column; gap: 6px; width: 190px; }
+    .bar { position: relative; height: 18px; background: #12101a; border: 1px solid #55486b; border-radius: 4px; overflow: hidden; }
+    .bar > .fill { position: absolute; inset: 0 auto 0 0; width: 100%; transition: width 0.2s; }
+    #hp-fill { background: linear-gradient(180deg, #ff6a5a, #b3261a); }
+    #hp-fill.low { animation: pulse-low 0.7s infinite alternate; }
+    @keyframes pulse-low { from { filter: brightness(1); } to { filter: brightness(1.6); } }
+    #ar-fill { background: linear-gradient(180deg, #7fd4ff, #2a78b8); }
+    #xp-fill { background: linear-gradient(180deg, #ffe27a, #b8861a); }
+    .bar.thin { height: 12px; }
+    .bar.thin > .txt { font-size: 9px; }
+    #btn-continue { margin-top: 12px; padding: 10px 32px; font-size: 15px; }
+    #best-line { margin-top: 14px; font-size: 13px; color: #8f82a8; letter-spacing: 1px; min-height: 16px; }
+    .bar > .txt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 7px; font-size: 11px; font-weight: bold; text-shadow: 0 1px 2px #000; }
+    .stats { display: flex; gap: 14px; }
+    .hud-stat { display: flex; flex-direction: column; align-items: center; min-width: 46px; }
+    .hud-label { font-size: 10px; color: #8f82a8; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+    .hud-val { font-size: 19px; font-weight: bold; color: #fff; }
+    #hud-skill { color: #ffd740; } #hud-rings { color: #40c4ff; } #hud-level { color: #e08cff; } #hud-floor { color: #9fe28a; }
+    #hud-relic { width: 56px; height: 48px; border: 1px dashed #4a3d5e; border-radius: 6px; opacity: 0.3; background: url(assets/dungeon.png) no-repeat; image-rendering: pixelated; }
+    #hud-relic.on { opacity: 1; border-style: solid; border-color: #ffd45a; animation: relic-glow 1s infinite alternate; }
+    #hud-relic[data-relic="1"] { background-size: 512px 588px; background-position: 0 -147px; }
+    #hud-relic[data-relic="2"] { background-size: 512px 588px; background-position: -339px -147px; }
+    @keyframes relic-glow { from { box-shadow: 0 0 4px #ffd45a55; } to { box-shadow: 0 0 14px #ffd45acc; } }
+    .btns { display: grid; grid-template-columns: repeat(3, auto); gap: 5px; }
+    .hud-btn {
+      background: #2a2238; border: 1px solid #5a4b73; color: #ddd; padding: 5px 9px; border-radius: 4px; font-size: 11px; font-weight: bold;
+      cursor: pointer; font-family: inherit;
+    }
+    .hud-btn:hover { background: #413557; border-color: #ffd45a; color: #ffd45a; }
+    .hud-btn.active { background: #4ac8ff; color: #06202e; border-color: #fff; }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="canvas-container"></div>
+    <div id="vignette"></div>
+    <div id="flash"></div>
+    <div id="fade"></div>
+
+    <div id="hud" class="hidden">
+      <div id="hud-episode">Episode 1</div>
+      <canvas id="minimap" width="220" height="130"></canvas>
+      <div id="log"></div>
+      <div id="guide"></div>
+      <div id="prompt"></div>
+      <div id="controls-hint">
+        <b>WASD</b> move &nbsp;|&nbsp; <b>Click</b> walk / attack &nbsp;|&nbsp; <b>Space</b> fire (auto-aim) &nbsp;|&nbsp; <b>E</b> ladder<br>
+        <b>R</b> ring &nbsp;|&nbsp; <b>Q</b> drop relic &nbsp;|&nbsp; <b>M</b> map &nbsp;|&nbsp; <b>Esc</b> menu &nbsp;|&nbsp; <b>H</b> help
+      </div>
+
+      <div id="hud-panel">
+        <canvas id="hud-portrait" width="64" height="64"></canvas>
+        <div class="bars">
+          <div class="bar"><div class="fill" id="hp-fill"></div><div class="txt"><span>HEALTH</span><span id="hp-text">0</span></div></div>
+          <div class="bar"><div class="fill" id="ar-fill" style="width:0"></div><div class="txt"><span>ARMOUR</span><span id="ar-text">0</span></div></div>
+          <div class="bar thin"><div class="fill" id="xp-fill" style="width:0"></div><div class="txt"><span>XP</span><span id="xp-text">0</span></div></div>
+        </div>
+        <div class="stats">
+          <div class="hud-stat"><span class="hud-label">Floor</span><span class="hud-val" id="hud-floor">1</span></div>
+          <div class="hud-stat"><span class="hud-label">Score</span><span class="hud-val" id="hud-skill">0</span></div>
+          <div class="hud-stat"><span class="hud-label">Hero Lv</span><span class="hud-val" id="hud-level">1</span></div>
+          <div class="hud-stat"><span class="hud-label">Rings</span><span class="hud-val" id="hud-rings">1</span></div>
+        </div>
+        <div id="hud-relic" title="Relic you are carrying"></div>
+        <div class="btns">
+          <button class="hud-btn" id="btn-ring" title="Ring of Protection [R]">Ring</button>
+          <button class="hud-btn" id="btn-drop" title="Set down relic [Q]">Drop</button>
+          <button class="hud-btn" id="btn-stairs" title="Use ladder [E]">Ladder</button>
+          <button class="hud-btn" id="btn-map" title="Map [M]">Map</button>
+          <button class="hud-btn" id="btn-obj" title="Objective [F2]">Goal</button>
+          <button class="hud-btn" id="btn-menu" title="Menu [Esc]">Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="splash-screen" class="screen-overlay">
+      <img id="splash-img" src="assets/murk256.png" alt="Murk">
+      <div class="press-start">CLICK TO ENTER THE DUNGEON</div>
+    </div>
+
+    <div id="select-screen" class="screen-overlay hidden">
+      <h1 class="select-title">CHOOSE YOUR CHAMPION</h1>
+      <div class="char-grid">
+        <div class="char-card selected" data-class="fighter">
+          <div class="char-avatar-box"><canvas id="avatar-fighter" width="64" height="64" class="char-avatar"></canvas></div>
+          <div class="char-name">WARRIOR</div>
+          <div class="char-desc">Sturdy and armoured. Hurls throwing blades.</div>
+          <div class="char-stats">
+            <div class="stat-row"><span>Health</span><span>High</span></div>
+            <div class="stat-row"><span>Damage</span><span>2 - 3</span></div>
+            <div class="stat-row"><span>Wears</span><span>Armour</span></div>
+          </div>
+        </div>
+        <div class="char-card" data-class="cleric">
+          <div class="char-avatar-box"><canvas id="avatar-cleric" width="64" height="64" class="char-avatar"></canvas></div>
+          <div class="char-name">CLERIC</div>
+          <div class="char-desc">Casts frost bolts and carries extra Rings of Protection.</div>
+          <div class="char-stats">
+            <div class="stat-row"><span>Health</span><span>Medium</span></div>
+            <div class="stat-row"><span>Damage</span><span>1 - 3</span></div>
+            <div class="stat-row"><span>Reads</span><span>Scrolls</span></div>
+          </div>
+        </div>
+        <div class="char-card" data-class="thief">
+          <div class="char-avatar-box"><canvas id="avatar-thief" width="64" height="64" class="char-avatar"></canvas></div>
+          <div class="char-name">THIEF</div>
+          <div class="char-desc">Quick on his feet with a rapid-fire dagger.</div>
+          <div class="char-stats">
+            <div class="stat-row"><span>Health</span><span>Medium</span></div>
+            <div class="stat-row"><span>Damage</span><span>1 - 3</span></div>
+            <div class="stat-row"><span>Speed</span><span>Fastest</span></div>
+          </div>
+        </div>
+        <div class="char-card" data-class="wizard">
+          <div class="char-avatar-box"><canvas id="avatar-wizard" width="64" height="64" class="char-avatar"></canvas></div>
+          <div class="char-name">WIZARD</div>
+          <div class="char-desc">Frail but deadly. Hurls fireballs that hit hard.</div>
+          <div class="char-stats">
+            <div class="stat-row"><span>Health</span><span>Low</span></div>
+            <div class="stat-row"><span>Damage</span><span>2 - 4</span></div>
+            <div class="stat-row"><span>Reads</span><span>Scrolls</span></div>
+          </div>
+        </div>
+      </div>
+      <button class="btn-start" id="btn-select-confirm">DESCEND INTO MURK</button>
+      <button class="btn secondary hidden" id="btn-continue">CONTINUE</button>
+      <div id="best-line"></div>
+    </div>
+
+    <div id="modal-screen" class="screen-overlay hidden">
+      <div class="panel modal-box">
+        <h2 class="modal-title" id="modal-title">EPISODE OBJECTIVE</h2>
+        <div class="modal-content" id="modal-content"></div>
+        <button class="btn modal-close" id="modal-close">CONTINUE</button>
+      </div>
+    </div>
+
+    <div id="pause-screen" class="screen-overlay hidden">
+      <div class="panel pause-box">
+        <h2>PAUSED</h2>
+        <button class="btn primary" id="pause-resume">RESUME</button>
+        <div class="pause-grid">
+          <button class="btn secondary" id="pause-map">Map</button>
+          <button class="btn secondary" id="pause-help">How to play</button>
+        </div>
+        <div class="pause-sep"></div>
+        <div class="slider-row"><span>Effects</span><input type="range" id="set-sfx" min="0" max="100"></div>
+        <div class="slider-row"><span>Ambience</span><input type="range" id="set-amb" min="0" max="100"></div>
+        <div class="pause-grid" style="margin-top:8px">
+          <button class="btn secondary toggle" id="set-mute">Sound: On</button>
+          <button class="btn secondary" id="set-fs">Fullscreen</button>
+          <button class="btn secondary toggle" id="set-aim">Aim assist</button>
+          <button class="btn secondary toggle" id="set-shake">Screen shake</button>
+          <button class="btn secondary toggle" id="set-hints">Control hints</button>
+        </div>
+        <div class="pause-sep"></div>
+        <div class="pause-grid">
+          <button class="btn secondary" id="pause-restart">Restart episode</button>
+          <button class="btn secondary" id="pause-quit">Quit to title</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="perk-screen" class="screen-overlay hidden">
+      <div class="panel perk-box">
+        <h2>LEVEL UP</h2>
+        <div class="perk-sub" id="perk-level"></div>
+        <div class="perk-cards" id="perk-cards"></div>
+      </div>
+    </div>
+
+    <div id="map-screen" class="screen-overlay hidden">
+      <div class="panel map-box">
+        <h2>DUNGEON MAP</h2>
+        <div id="map-floor"></div>
+        <canvas id="bigmap" width="900" height="520"></canvas>
+        <div class="map-bar">
+          <button class="btn secondary" id="map-prev">&#9664; Floor up</button>
+          <span class="legend"><span><i style="background:#fff36a"></i>You</span><span><i style="background:#4fe08a"></i>Home</span><span><i style="background:#ff5544"></i>Red relic</span><span><i style="background:#55aaff"></i>Blue relic</span><span>&#9660; down &nbsp;&#9650; up</span></span>
+          <button class="btn secondary" id="map-next">Floor down &#9654;</button>
+          <button class="btn" id="map-close">CLOSE</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="lib/three.min.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/dungeon.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/controls.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
