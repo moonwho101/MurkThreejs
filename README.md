@@ -1,162 +1,185 @@
-# Murk
-
-Murk is a 1998 2D isometric dungeon crawler by Mark Longo, now preserved as a buildable Windows source release. It is a fast, arcade-style fantasy action game built with Win32, MFC, DirectDraw, DirectSound, and legacy DirectPlay-era networking code.
-
-If you are interested in retro game development, Windows 95 game programming, early DirectX history, or playable open-source dungeon games, Murk is a compact and useful codebase to explore.
-
-![Murk title art](artwork/murk256.jpg)
-
-## Why Murk Stands Out
-
-- Original late-1990s Windows game source, updated to build in Visual Studio 2022
-- Playable on modern Windows systems from the included binary in `bin/`
-- Isometric dungeon exploration with shooting, treasure, traps, and item pickups
-- Built with classic Microsoft game tech: DirectDraw, DirectSound, DirectPlay, Win32, and MFC
-- Useful reference project for retro game preservation and DirectX-era programming patterns
-
-## Quick Facts
-
-| Item | Details |
-| --- | --- |
-| Genre | Arcade-style isometric dungeon crawler |
-| Original release era | 1998-1999 |
-| Language | C++ |
-| Graphics/API | DirectDraw |
-| Audio/API | DirectSound, MIDI |
-| Networking | Legacy DirectPlay support in source |
-| Build target | Win32 |
-| License | MIT |
-
-## Screenshots
-
-<img src="artwork/Murk01.jpg" alt="Murk gameplay screenshot" width="800">
-
-<img src="artwork/dungeon.jpg" alt="Murk dungeon screenshot" width="800">
-
-<img src="artwork/multiplayer.jpg" alt="Murk multiplayer-era promotional screenshot" width="800">
-
-## Play Murk
-
-To try the game immediately:
-
-1. Open the `bin/` folder.
-2. Run `Murk.exe`.
-
-The bundled executable is intended to run on current Windows versions, including Windows 10 and Windows 11.
-
-### Play in the browser (three.js port)
-
-`web/` contains a browser port that reuses the original sprites, sounds and episode files (`web/assets/levels.json`). It has no build step; serve the folder with any static server and open it:
-
-```
-cd web
-python -m http.server 8123
-```
-
-Then browse to `http://127.0.0.1:8123/`. The port keeps the original rules (sleeping monsters, relic hunt, home pads, ladders, pits, Rings of Protection) and episode files, and modernises the play:
-
-- **Controls:** WASD / arrows move in screen directions and follow winding tunnels around corners; click to walk (hold to follow the cursor) or click a monster to close in and attack; `Space` fires with aim assist along the four diagonals; right-click fires toward the cursor; input is buffered so steps chain smoothly. Gamepad supported (left stick move, RT / right stick fire, A ladder, X ring, Y relic, Back map, Start pause).
-- **Combat feel:** monsters flash gold just before they fire, damaged monsters show health bars, hovered/targeted monsters get a ring, and walking shows a destination marker and breadcrumbs.
-- **Progression:** pick one of three talents on every level-up, rise again at your home pad after dying (the dungeon stays as you left it), per-episode stats, a best-run record, and Continue between episodes (saved in `localStorage`).
-- **Interface:** pause menu with volume sliders, aim assist, screen shake and fullscreen options, a full explored-floor map (`M` / `Tab`), a minimap that follows you in large dungeons (up to 200x200), and a guide arrow toward your home pad while you carry the relic.
-
-Press `H` in game for the full control list. To publish on itch.io (or any static host), zip the contents of `web/` (with `index.html` at the zip root) and upload it as an HTML5 game.
-
-## Gameplay
-
-Murk was originally described as a standalone or networkable arcade quest game. You choose a character, descend into the dungeon, fight monsters, search for treasure, collect useful items, and move between levels through stairs or ladders.
-
-The codebase and bundled docs indicate support for:
-
-- Single-player dungeon crawling
-- Legacy network play features from the DirectPlay era
-- Mouse, keyboard, and joystick input
-- Save/load functionality
-- Chat and mission/help screens
-
-## Controls
-
-### Mouse
-
-- Left click: move
-- Right click: fire
-- Double left click: go up or down stairs/ladders
-
-### Keyboard
-
-- Arrow keys: move
-- Ctrl: fire
-- Shift: go up or down stairs/ladders
-- R: use Ring of Protection
-- T: drop treasure
-- C: chat
-- F1: help
-- F2: episode objective
-- F3: save game
-- F4: load game
-- F5: chat
-
-### Joystick
-
-- D-pad / stick: movement
-- Button 1: shoot
-- Button 2: up/down stairs
-- Button 3: ring
-- Button 4: drop treasure
-
-## Build From Source
-
-Murk can be built with Visual Studio 2022.
-
-### Requirements
-
-- Visual Studio 2022
-- Desktop development with C++
-- MFC for v143 build tools (x86 and x64)
-- Windows SDK compatible with the installed Visual Studio toolset
-
-### Build Steps
-
-1. Open `src/Murk.sln` in Visual Studio 2022.
-2. Select the `Release | Win32` configuration.
-3. Build the solution.
-4. The output binary is written to `bin/Murk.exe`.
-
-## Technical Notes
-
-This repository is especially relevant if you want to study how older Windows games were structured before modern engines became dominant.
-
-Areas of interest include:
-
-- DirectDraw-based 2D rendering
-- DirectSound and MIDI playback
-- Win32 application structure and message handling
-- MFC-era project setup and resource management
-- DirectPlay-era multiplayer code and dialogs
-- Asset-driven game logic in a compact C++ codebase
-
-## Repository Layout
-
-- `src/`: C++ source, headers, Visual Studio solution, resources
-- `bin/`: runnable binary, config files, save data, bundled documentation
-- `artwork/`: screenshots, scans, and promotional images
-- `sound/`: audio assets
-- `web/`: three.js browser port (`js/` game code, `assets/` converted sprites, sounds and episode data)
-
-## Historical Context
-
-Murk comes from the Windows 95 PC game era, when developers commonly shipped custom engines directly on top of DirectX. That makes this repository useful not only as a playable game, but also as a small historical reference for late-1990s Windows game development.
+# Murk — Isometric Dungeon Crawler
 
 <p align="center">
-	<img src="artwork/Windows95GameSDK.jpg" alt="Windows 95 Game SDK" width="300">
+  <img src="assets/murk256.png" alt="Murk Title Banner" width="560">
 </p>
 
 <p align="center">
-	<img src="artwork/DirectX.jpg" alt="Classic DirectX packaging" width="601">
+  <b>A classic 1999 isometric dungeon crawler, reimagined for the modern web with Three.js and WebGL.</b>
 </p>
 
-## License
+<p align="center">
+  <a href="https://moonwho101.github.io/MurkThreejs/">
+    <img src="https://img.shields.io/badge/%E2%96%B6%20PLAY%20NOW-In%20Your%20Browser-brightgreen?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Play Now in Browser">
+  </a>
+</p>
 
-This project is released under the MIT License. See `LICENSE` for details.
+<p align="center">
+  <a href="https://moonwho101.github.io/MurkThreejs/"><b>👉 https://moonwho101.github.io/MurkThreejs/ 👈</b></a><br>
+  <i>No installation, no downloads, no plugins — runs instantly in any modern web browser!</i>
+</p>
+
+---
+
+## Overview
+
+**Murk** is a fast-paced, arcade-style isometric dungeon crawler running directly in your web browser. Built on **Three.js** and WebGL, this project is a ground-up modernization of the original 1998–1999 Windows game created by Mark Longo (originally built with Win32, MFC, DirectDraw, and DirectSound).
+
+This modern release preserves the charming late-90s pixel art, original sound effects, and multi-floor episode layouts, while completely overhauling the experience with smooth real-time movement, smart pathing, dynamic WebGL lighting shaders, Roguelite talent choices, and full gamepad support.
+
+Whether you are looking to relive late-90s PC gaming nostalgia or jump into an immediate browser-based dungeon delve, your adventure begins with a single click.
+
+---
+
+## 🎮 Play Immediately in Your Browser
+
+The game is hosted on **GitHub Pages** and configured to run out of the box:
+
+### 🔗 **[Play Murk Now](https://moonwho101.github.io/MurkThreejs/)**
+
+- **Instant access:** Loads in seconds on Chrome, Firefox, Safari, Edge, and mobile browsers.
+- **Zero build or setup required:** Pure static web architecture with zero external runtime dependencies.
+- **Save & Continue:** Automatically tracks your progress, best runs, and settings in your browser's local storage.
+
+<p align="center">
+  <img src="assets/screenshot01.png" alt="Murk Three.js Gameplay Screenshot" width="800">
+  <br>
+  <i>In-game combat with dynamic torchlight, projectile effects, minimap, and HUD.</i>
+</p>
+
+---
+
+## ✨ Modern Features & Enhancements
+
+- 🗡️ **4 Distinct Champions:** Play as the **Warrior**, **Cleric**, **Thief**, or **Wizard**, each with tailored combat stats, projectile types, firing rhythms, and armor capabilities.
+- 💡 **WebGL Torchlight & Ambient Shaders:** Custom GLSL shaders render dynamic flickering torchlight that illuminates dungeon corridors, cast radial ambient glow, and trigger screen hit flashes and particle bursts.
+- 🧭 **Intelligent Navigation & Pathing:** Fluid screen-space WASD / arrow movement that automatically glides around corridor corners and winding walls, supplemented by click-to-walk pathfinding and click-to-attack targeting.
+- 🎯 **Tactical Diagonal Combat:** Smart 4-diagonal auto-aim assist locks onto nearby threats when firing forward, complemented by right-click directional shooting.
+- ⚠️ **Monster Attack Wind-ups:** Enemies flash bright gold just before loosing projectiles, rewarding observant players with reaction-based sidestepping and dodging.
+- 🌟 **Level-Up Talent Drafting:** Earn XP by defeating monsters and choose 1 of 3 randomized perks upon leveling up (increase missile volleys, raise damage ceilings, fire faster, boost movement speed, gain piercing shots, or leach life).
+- 🗺️ **Comprehensive Map Systems:** A real-time HUD minimap tracks your position in large dungeons, plus a full explored-floor map overlay (`M` or `Tab`) with ladder indicators and floor switching.
+- 🏆 **The Relic Hunt:** Descend deep through the dungeon floors, claim the sacred relic, and race back to your Home Pad while using a dynamic guidance compass arrow to navigate the awakened dungeon.
+- 🛡️ **Rings of Protection & Resurrection:** Deploy temporary invulnerability shields to escape tight spots. If you fall, you resurrect back at your home pad with dungeon state intact!
+- 🎮 **Full Gamepad Support:** Native plug-and-play controller support using the HTML5 Gamepad API.
+- ⚙️ **In-Game Settings Menu:** Fine-tune SFX and atmospheric dungeon audio sliders, toggle aim assist, screen shake, fullscreen, and control hints on the fly (`Esc`).
+
+---
+
+## 🛡️ Choose Your Champion
+
+| Champion | Archetype | Health | Damage | Projectile | Playstyle |
+| :--- | :--- | :---: | :---: | :--- | :--- |
+| **Warrior** | Fighter | High (40) | 2 – 3 | Throwing Blades / Axes | Armoured frontline bruiser with heavy survivability. |
+| **Cleric** | Battle Priest | Medium (36) | 1 – 3 | Frost Bolts | Carries extra Rings of Protection and reads sacred scrolls. |
+| **Thief** | Rogue | Medium (34) | 1 – 3 | Rapid Daggers | Highest movement speed and fastest firing rate. |
+| **Wizard** | Sorcerer | Low (30) | 2 – 4 | Explosive Fireballs | Glass cannon with devastating high-impact ranged magic. |
+
+---
+
+## 🕹️ Controls
+
+Murk supports keyboard, mouse, and gamepads:
+
+### Keyboard & Mouse
+
+| Action | Control | Notes |
+| :--- | :--- | :--- |
+| **Move** | `W` `A` `S` `D` / Arrow keys / Numpad | Follows tunnel corners automatically |
+| **Walk to Tile** | `Left Click` (or hold to follow cursor) | Pathfinds toward mouse position |
+| **Attack / Focus** | `Left Click` on an enemy | Closes into diagonal firing line and shoots |
+| **Fire (Auto-Aim)** | `Space` / `J` / `Ctrl` | Fires with aim assist along 4 diagonals |
+| **Fire Toward Cursor** | `Right Click` | Shoots directly toward mouse position |
+| **Use Ladder / Stairs** | `E` / `Enter` (or click ladder) | Travel between dungeon floors |
+| **Ring of Protection** | `R` | Activates invulnerability shield |
+| **Drop Relic** | `Q` | Places the carried relic down |
+| **Dungeon Map** | `M` / `Tab` | Opens full explored-floor map |
+| **Pause / Settings** | `Esc` | Audio volume, toggles, controls |
+| **Objective / Goal** | `F2` | Read current mission briefing |
+| **Help Screen** | `H` / `F1` | Quick reference for all keybinds |
+| **Fullscreen / Mute** | `F` / `N` | Toggle fullscreen or mute sound |
+
+### Gamepad Controls
+
+- **Left Stick / D-Pad:** 8-direction character movement
+- **Right Trigger (RT) / Right Stick:** Fire with auto-aim
+- **A Button:** Use stairs / ladder
+- **X Button:** Activate Ring of Protection
+- **Y Button:** Drop relic
+- **Back / Select:** View floor map
+- **Start:** Pause menu
+
+---
+
+## 📜 Rules of the Dungeon
+
+1. **Find the Relic:** Each episode presents a multi-level dungeon. Descend through ladders to find the designated relic (`-p` or `-k` markers).
+2. **Beware the Wake:** Taking the relic awakens the dungeon's dormant inhabitants! Use your **Ring of Protection** (`R`) and hustle back to your home pad.
+3. **Follow the Guide:** A green arrow indicator on your screen points directly toward your home pad while carrying the relic.
+4. **Watch for Flashing Foes:** When an enemy flashes gold, it is about to fire — step out of the diagonal line of fire.
+5. **Drop & Recover:** Taking damage while carrying the relic causes you to drop it. Clear the immediate threat, pick it back up, and keep moving.
+6. **Level Up:** Defeating monsters fills your XP bar. Every level grants a choice of 3 randomized perks to build your character for deeper runs.
+
+---
+
+## 👾 Dungeon Bestiary
+
+- **Skeleton:** Fast-moving undead dungeon scouts equipped with throwing weapons.
+- **Gibbering Mouther:** Vile crawling monstrosities that spit acidic projectiles.
+- **Brute (Ogre):** Hulking brutes hurling heavy axes and stones with punishing health pools.
+- **Beholder:** Floating multi-eyed terrors launching swift, searing energy orbs.
+- **Death Orb:** Lethal high-tier bosses with massive health bars and rapid-fire barrages.
+
+---
+
+## 💻 Running Locally
+
+Because Murk is built entirely with client-side vanilla JavaScript and Three.js, you can run and modify it locally without any build pipelines, npm installs, or compilers.
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/moonwho101/MurkThreejs.git
+   cd MurkThreejs
+   ```
+
+2. **Start any local static server:**
+   - **Using Python 3:**
+     ```bash
+     python -m http.server 8000
+     ```
+   - **Using Node (npx):**
+     ```bash
+     npx serve
+     ```
+   - **Using VS Code Live Server:** Right-click `index.html` and click **Open with Live Server**.
+
+3. **Open in your browser:**
+   Navigate to `http://localhost:8000` (or the port provided by your server).
+
+---
+
+## 🏗️ Architecture & Technology Stack
+
+- **Three.js (`lib/three.min.js`):** Orthographic camera and 2D-in-3D sprite world rendering with depth sorting and pixel-perfect scaling.
+- **Custom GLSL Shaders (`js/renderer.js`):** Real-time fragment shaders powering dynamic torchlight attenuation, ambient color grading, monster hit flashes, and glowing halos.
+- **Dungeon Engine (`js/dungeon.js`):** Isometric coordinate transforms, grid collision handling, ladder connections, and multi-floor level loading from `assets/levels.json`.
+- **Entity & Combat Logic (`js/entities.js`, `js/game.js`):** Player and monster finite state machines, projectile simulation, damage rolling, armor mitigation, and pathfinding.
+- **Controls & Input Buffering (`js/controls.js`):** Responsive screen-space directional mapping, corner-assist smoothing, mouse raycasting, and HTML5 Gamepad polling.
+- **Web Audio API (`js/audio.js`):** Dynamic sound synthesis and multi-channel audio playback for footsteps, missile releases, creature cries, and impact effects.
+- **Persistent State (`js/ui.js`):** Browser `localStorage` saving for episode unlocks, user preferences, talent builds, and best-time records.
+
+---
+
+## 🏛️ Historical Context & Heritage
+
+The original **Murk** was created in **1998–1999 by Mark Longo** as an arcade quest game during the golden era of Windows 95/98 PC gaming. Developed with Microsoft Visual C++, MFC, DirectDraw, and DirectSound, it showcased fast-paced 2D isometric action and early network multiplayer capabilities.
+
+This Three.js browser edition honors that history by preserving the authentic sprite sheets, creature graphics, sound effects, and level definitions, making this classic accessible to anyone worldwide directly through their web browser.
+
+---
+
+## 📄 License
+
+This project is open-source under the MIT License. Original game assets, sound effects, and level designs are preserved from the 1998–1999 release of Murk by Mark Longo.
+
 
 
