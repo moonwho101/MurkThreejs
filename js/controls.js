@@ -64,6 +64,7 @@ Object.assign(MurkGame.prototype, {
   bindInput() {
     const surface = this.renderer.renderer.domElement;
     surface.addEventListener('mousedown', (e) => this.onMouseDown(e));
+    surface.addEventListener('dblclick', (e) => this.onDblClick(e));
     window.addEventListener('mousemove', (e) => {
       this.mouse.x = e.clientX;
       this.mouse.y = e.clientY;
@@ -186,6 +187,13 @@ Object.assign(MurkGame.prototype, {
     if (e.button === 0) {
       this.mouse.left = true;
       this.lastPathCell = null;
+
+      const now = performance.now();
+      const g = this.renderer.screenToGrid(e.clientX, e.clientY);
+      const isDbl = (now - (this.lastClickTime || 0) < 400 && this.lastClickCell === `${g.x},${g.y}`);
+      this.lastClickTime = now;
+      this.lastClickCell = `${g.x},${g.y}`;
+
       const foe = this.hostileUnderMouse();
       if (foe) {
         this.attackTarget = foe;
@@ -194,12 +202,46 @@ Object.assign(MurkGame.prototype, {
         this.autoUse = false;
         this.repathAt = 0;
       } else {
+        const cell = this.ds.cell(g.x, g.y, this.lvl);
+        if (isDbl && cell.type === 's') {
+          const p = this.player;
+          this.attackTarget = null;
+          this.mouse.leftOnEnemy = false;
+          if (g.x === p.x && g.y === p.y) {
+            this.useStairs();
+            return;
+          }
+          const path = this.ds.findPath(this.lvl, p.x, p.y, g.x, g.y, null);
+          if (path) {
+            this.path = path;
+            this.autoUse = true;
+            return;
+          }
+        }
         this.attackTarget = null;
         this.mouse.leftOnEnemy = false;
         this.pathToMouse(true);
       }
     } else if (e.button === 2) {
       this.mouse.right = true;
+    }
+  },
+
+  onDblClick(e) {
+    if (this.state !== 'PLAYING' || e.button !== 0) return;
+    const g = this.renderer.screenToGrid(e.clientX, e.clientY);
+    const cell = this.ds.cell(g.x, g.y, this.lvl);
+    if (cell.type === 's') {
+      const p = this.player;
+      if (g.x === p.x && g.y === p.y) {
+        this.useStairs();
+      } else {
+        const path = this.ds.findPath(this.lvl, p.x, p.y, g.x, g.y, null);
+        if (path) {
+          this.path = path;
+          this.autoUse = true;
+        }
+      }
     }
   },
 
@@ -314,7 +356,9 @@ Object.assign(MurkGame.prototype, {
       if ((this.stepFlip++ & 1) === 0) this.audio.play('walk.wav', 0.25);
     } else if (!dir && this.autoUse) {
       this.autoUse = false;
-      if (this.ds.cell(p.x, p.y, this.lvl).type === 's') this.useStairs();
+      if (this.ds.cell(p.x, p.y, this.lvl).type === 's') {
+        this.useStairs();
+      }
     }
   },
 
@@ -345,7 +389,7 @@ Object.assign(MurkGame.prototype, {
     this.lastPathCell = key;
     const p = this.player;
     if (g.x === p.x && g.y === p.y) {
-      if (force) this.useStairs();
+      if (force && this.settings.autoStairs !== false) this.useStairs();
       return;
     }
     const cell = this.ds.cell(g.x, g.y, this.lvl);
@@ -353,7 +397,7 @@ Object.assign(MurkGame.prototype, {
     const path = this.ds.findPath(this.lvl, p.x, p.y, g.x, g.y, null);
     if (path) {
       this.path = path;
-      this.autoUse = cell.type === 's';
+      this.autoUse = cell.type === 's' && this.settings.autoStairs !== false;
     }
   },
 
