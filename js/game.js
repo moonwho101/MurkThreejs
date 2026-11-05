@@ -173,6 +173,8 @@ class MurkGame {
     document.getElementById('btn-map').addEventListener('click', () => this.openMap());
     document.getElementById('btn-obj').addEventListener('click', () => this.showObjective());
     document.getElementById('btn-menu').addEventListener('click', () => this.openPause());
+    document.getElementById('btn-zoom-in').addEventListener('click', () => this.renderer.zoomBy(1));
+    document.getElementById('btn-zoom-out').addEventListener('click', () => this.renderer.zoomBy(-1));
     this.dom.modalBtn.addEventListener('click', () => this.closeModal());
 
     this.bindInput();

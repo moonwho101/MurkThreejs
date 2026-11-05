@@ -307,6 +307,7 @@ Object.assign(MurkGame.prototype, {
       row(kb('E') + ' / ' + kb('Enter'), 'Use a ladder (or double-click it).') +
       row(kb('R') + ' &nbsp; ' + kb('Q'), 'Ring of Protection &nbsp;\u00B7&nbsp; set the relic down.') +
       row(kb('M') + ' / ' + kb('Tab'), 'Full map of the explored floor.') +
+      row('Wheel / ' + kb('+') + ' ' + kb('-'), 'Zoom in and out.') +
       row(kb('Esc') + ' &nbsp; ' + kb('F') + ' &nbsp; ' + kb('N'), 'Pause menu &nbsp;\u00B7&nbsp; fullscreen &nbsp;\u00B7&nbsp; mute.') +
       row('Gamepad', 'Left stick move \u00B7 RT / right stick fire \u00B7 A ladder \u00B7 X ring \u00B7 Y relic \u00B7 Back map \u00B7 Start pause.') +
       `</div><div class="modal-hint">Missiles fly along the four diagonals - line up your shots, and sidestep when a monster flashes gold: it is about to fire. ` +
