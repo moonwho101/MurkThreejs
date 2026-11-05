@@ -58,8 +58,8 @@ The game is hosted on **GitHub Pages** and configured to run out of the box:
 - ⚠️ **Monster Attack Wind-ups:** Enemies flash bright gold just before loosing projectiles, rewarding observant players with reaction-based sidestepping and dodging.
 - 🌟 **Level-Up Talent Drafting:** Earn XP by defeating monsters and choose 1 of 3 randomized perks upon leveling up (increase missile volleys, raise damage ceilings, fire faster, boost movement speed, gain piercing shots, or leach life).
 - 🗺️ **Comprehensive Map Systems:** A real-time HUD minimap tracks your position in large dungeons, plus a full explored-floor map overlay (`M` or `Tab`) with ladder indicators, lair locations, and floor switching.
-- 🏆 **The Blue Treasure Hunt & Rival Factions:** Red treasure is no more — both the player (Team 1) and a competing Rival squad (Team 2) vie for the single sacred Blue Treasure.
-- ⚔️ **Dynamic Rival Squad AI:** Rivals awaken immediately at game start. The first rival searches the dungeon depths for the blue treasure and carries it back to their lair, while their teammates hover as an escort squad hunting monsters and hostile players.
+- 🏆 **The Blue Treasure Hunt & Rival Factions:** Red treasure is no more — every episode is a hunt for the single sacred Blue Treasure. In rival episodes (`gametype` 2) a competing Rival squad (Team 2) races you for it.
+- ⚔️ **Dynamic Rival Squad AI:** Rivals awaken immediately at game start and keep playing even on floors you are not on. The first rival searches the dungeon depths for the blue treasure and carries it back to their lair, while their teammates hover as an escort squad hunting monsters and hostile players.
 - 🏰 **Infiltrate Rival Lairs:** Rivals bring the treasure back to their lair (marked with the blue circle pad) to fortify and guard it. Invade their lair, defeat the defenders, reclaim the treasure, and bring it home!
 - 🛡️ **Rings of Protection & Resurrection:** Deploy temporary invulnerability shields to escape tight spots. If you fall, you resurrect back at your home pad with dungeon state intact!
 - 🎮 **Full Gamepad Support:** Native plug-and-play controller support using the HTML5 Gamepad API.
@@ -115,14 +115,21 @@ Murk supports keyboard, mouse, and gamepads:
 
 ## 📜 Rules of the Dungeon
 
-1. **Race for the Blue Treasure:** Red treasure is no longer placed in the dungeon. Both your team (Team 1) and the rival squad (Team 2) compete to locate the single sacred Blue Treasure hidden in the dungeon depths.
-2. **Beware of Rivals (Team 2):** When rivals are present, they awaken immediately upon entering the dungeon. An in-game alert warns you of their presence.
-3. **Rival Expedition Tactics:** The first player from Team 2 searches through the levels for the blue treasure and rushes to carry it back to their lair. Other Team 2 players hover around their leader as an armed escort, scouting for monsters and eliminating non-friendly players.
+Each episode in `assets/levels.json` sets a `gametype`:
+
+| `gametype` | Mode | Goal |
+| :---: | :--- | :--- |
+| **1** | **Treasure Hunt** | Find the blue treasure and return it to your home pad. Only you, your allies (Team 1) and the monsters are in the dungeon — rivals are never spawned, even if the episode lists Team 2 characters. |
+| **2** | **Rival Race** | Same goal, but a Team 2 rival squad starts awake in their lair and competes for the treasure. Any characters with team `2` become rivals. |
+
+1. **Find the Blue Treasure:** Red treasure is no longer placed in the dungeon. The single sacred Blue Treasure is hidden somewhere below Floor 1. In rival episodes (gametype 2) the rival squad (Team 2) competes with you to claim it.
+2. **Beware of Rivals (Team 2, gametype 2 only):** When rivals are present, they awaken immediately upon entering the dungeon. An in-game alert warns you of their presence.
+3. **Rival Expedition Tactics:** The first player from Team 2 searches through the levels for the blue treasure and rushes to carry it back to their lair. Other Team 2 players hover around their leader as an armed escort, scouting for monsters and eliminating non-friendly players. If the leader falls, the surviving rivals take over the hunt.
 4. **Lair Defense & Infiltration:** Rivals bring the blue treasure back to their lair (marked on the floor and map by the blue circle pad, located columns over from the green player pad). Once secured, they fortify their lair to guard it, while occasionally venturing out to hunt monsters. Infiltrate their lair, slay the guards, and seize the treasure!
 5. **Beware the Wake:** Taking the treasure awakens dormant monsters throughout the dungeon! Use your **Ring of Protection** (`R`) and hustle back to your home pad.
 6. **Follow the Guide:** A green compass arrow indicator on your screen points directly toward your home pad while carrying the treasure.
 7. **Watch for Flashing Foes:** When an enemy flashes gold, it is about to fire — step out of the diagonal line of fire.
-8. **Drop & Recover:** Taking damage while carrying the treasure causes the carrier (player or rival) to drop it immediately. Ambush rivals to steal the treasure, or clear threats to recover your own drop.
+8. **Drop & Recover:** Taking damage while carrying the treasure causes the carrier (player or rival) to drop it immediately. If you are knocked out of the treasure, you grab it back automatically once you recover (a moment later) — a treasure you set down yourself with `Q` stays put until you step onto it again. Ambush rivals to steal the treasure, or clear threats to recover your own drop.
 9. **Level Up:** Defeating monsters and rivals fills your XP bar. Every level grants a choice of 3 randomized perks to build your character for deeper runs.
 
 ---
@@ -134,7 +141,7 @@ Murk features a three-way dynamic conflict:
 | Faction | Team | Role & Behavior |
 | :--- | :---: | :--- |
 | **Player & Allies** | **Team 1** | You and your friendly allies start at your green home pad on Floor 1. Seek the blue treasure and return it home to conquer the episode. |
-| **Rival Adventurers** | **Team 2** | Competing champions based in their deep dungeon lair (blue circle pad). The first rival hunts the treasure, while teammates form an escort squad to fight monsters and enemy players. |
+| **Rival Adventurers** | **Team 2** | *Gametype 2 only.* Competing champions based in their deep dungeon lair (blue circle pad). The first rival hunts the treasure, while teammates form an escort squad to fight monsters and enemy players. |
 | **Dungeon Inhabitants** | *Neither (Team 0)* | Skeletons, Mouthers, Ogres, Beholders, and Death Orbs. Monsters belong to neither team and are aggressively hostile toward both Team 1 and Team 2. |
 
 ---

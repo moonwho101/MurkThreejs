@@ -212,6 +212,8 @@ class MurkGame {
     this.renderer.clearEntities();
     this.epStats = { kills: 0, time: 0, deaths: 0, items: 0 };
     this.team2Lair = null;
+    this.rivalsEnabled = false;
+    this.dungeonAwake = false;
     this.rivalsAlerted = false;
 
     const home = this.ds.randomFloor(1);
@@ -292,12 +294,17 @@ class MurkGame {
     spawnMonsters('skeleton', ep.skeletons, ep.sspeed);
     spawnMonsters('deathorb', ep.deathorb, ep.dspeed);
 
-    const hasTeam2 = (ep.fighter > 0 && ep.fteam === 2) ||
-                     (ep.cleric > 0 && ep.cteam === 2) ||
-                     (ep.thief > 0 && ep.tteam === 2) ||
-                     (ep.wizard > 0 && ep.wteam === 2);
+    // Gametype 1 is a pure treasure hunt; rival squads (team 2) only exist in gametype 2.
+    this.rivalsEnabled = ep.gametype === 2;
+    const hasTeam2 = this.rivalsEnabled && (
+      (ep.fighter > 0 && ep.fteam === 2) ||
+      (ep.cleric > 0 && ep.cteam === 2) ||
+      (ep.thief > 0 && ep.tteam === 2) ||
+      (ep.wizard > 0 && ep.wteam === 2));
     if (hasTeam2) {
-      const lairSpot = ds.randomFloor(maxl);
+      const relic = ds.relic(2);
+      const lairSpot = ds.randomFloor(maxl, (x, y) => !relic || relic.lvl !== maxl || relic.x !== x || relic.y !== y) ||
+                       ds.randomFloor(maxl);
       if (lairSpot) {
         this.team2Lair = { x: lairSpot.x, y: lairSpot.y, lvl: lairSpot.lvl };
         // Use pad 5: the icon columns over from the player circle icon in dungeon.png
@@ -308,9 +315,11 @@ class MurkGame {
     let team2LeaderSpawned = false;
     const spawnCharacters = (key, count, team, speed) => {
       const def = CLASS_DEFS[key];
+      const friendly = team === 1;
+      const isTeam2 = team === 2;
+      // Team 2 characters are skipped unless this episode has rivals; unknown team values never spawn.
+      if (!friendly && !(isTeam2 && hasTeam2)) return;
       for (let i = 0; i < count; i++) {
-        const friendly = team === 1;
-        const isTeam2 = team === 2;
         const lvl = friendly ? 1 : (this.team2Lair ? this.team2Lair.lvl : maxl);
         let p = null;
         if (friendly) {
@@ -458,6 +467,16 @@ class MurkGame {
            this.entities.find(e => e.team === 2) || null;
   }
 
+  // The leader seeks the treasure; if the leader is down, every surviving rival takes over that role.
+  isTeam2Lead(e) {
+    const leader = this.getTeam2Leader();
+    return e === leader || !leader || !leader.alive;
+  }
+
+  relicAtLair(relic, e) {
+    return !!(relic && !relic.carrier && e.lair && relic.lvl === e.lair.lvl && relic.x === e.lair.x && relic.y === e.lair.y);
+  }
+
   getTeam2TargetLvl(e) {
     const relic = this.ds.relic(2);
     if (e.carrying === 2) {
@@ -467,19 +486,56 @@ class MurkGame {
       return relic.carrier.lvl;
     }
     const leader = this.getTeam2Leader();
-    const isLeader = (e === leader) || (!leader?.alive && e.team === 2);
-    if (isLeader) {
-      if (relic && !relic.carrier) {
-        const atLair = e.lair && relic.lvl === e.lair.lvl && relic.x === e.lair.x && relic.y === e.lair.y;
-        if (atLair) return e.lair.lvl;
+    if (this.isTeam2Lead(e)) {
+      if (relic && !relic.carrier && relic.lvl > 0) {
+        if (this.relicAtLair(relic, e)) return e.lair.lvl;
         return relic.lvl;
       }
       return e.lair ? e.lair.lvl : e.lvl;
     } else {
       if (leader && leader.alive) return leader.lvl;
-      if (relic && !relic.carrier) return relic.lvl;
+      if (relic && !relic.carrier && relic.lvl > 0) return relic.lvl;
       return e.lair ? e.lair.lvl : e.lvl;
     }
+  }
+
+  // Squad priority for tight tunnels: treasure carrier > leader > escort.
+  team2Rank(e) {
+    return e.carrying === 2 ? 2 : this.isTeam2Lead(e) ? 1 : 0;
+  }
+
+  // Steps a rival to the adjacent cell `next`, trading places with a lower-ranked idle squadmate blocking a
+  // one-tile tunnel. Equal ranks never swap, so two rivals cannot ping-pong. Returns true if it moved.
+  team2PushThrough(e, next, animate) {
+    const occ = this.entityAt(next.x, next.y, e.lvl, e);
+    if (occ && !(occ.team === 2 && !occ.moving && this.team2Rank(e) > this.team2Rank(occ))) return false;
+    const fromX = e.x;
+    const fromY = e.y;
+    const dir = dirFromDelta(next.x - fromX, next.y - fromY);
+    if (animate) {
+      e.startMove(next.x, next.y, dir);
+      if (occ) occ.startMove(fromX, fromY, dirFromDelta(fromX - next.x, fromY - next.y));
+    } else {
+      e.dir = dir;
+      e.teleport(next.x, next.y, e.lvl);
+      if (occ) occ.teleport(fromX, fromY, e.lvl);
+    }
+    return true;
+  }
+
+  // Where an off-screen rival walks on its current floor (simulated, since it is not rendered).
+  team2OffLevelGoal(e) {
+    const relic = this.ds.relic(2);
+    if (e.carrying === 2) return e.lair && e.lair.lvl === e.lvl ? e.lair : null;
+    if (relic && !relic.carrier && relic.lvl === e.lvl && !this.relicAtLair(relic, e) && this.isTeam2Lead(e)) {
+      return { x: relic.x, y: relic.y };
+    }
+    const leader = this.getTeam2Leader();
+    if (leader && leader.alive && leader !== e && leader.lvl === e.lvl &&
+        Math.abs(leader.x - e.x) + Math.abs(leader.y - e.y) > 3) {
+      return leader;
+    }
+    return null;
   }
 
   checkEntityRelicPickup(e) {
@@ -489,12 +545,8 @@ class MurkGame {
       if (relic.carrier || relic.lvl !== e.lvl || relic.x !== e.x || relic.y !== e.y) continue;
       if ((relic.dropCooldown || 0) > 0) continue;
       if (relic.id === 2 && e.team === 2) {
-        const leader = this.getTeam2Leader();
-        // If treasure is resting at lair, followers do not take it away from their own lair
-        if (e !== leader && leader && leader.alive && !leader.carrying && e.lair &&
-            (relic.x === e.lair.x && relic.y === e.lair.y && relic.lvl === e.lair.lvl)) {
-          continue;
-        }
+        // Treasure already secured in their own lair stays put; rivals guard it instead of re-carrying it.
+        if (this.relicAtLair(relic, e)) continue;
         relic.carrier = e;
         e.carrying = relic.id;
         this.playAt('treasure.wav', e, 0.7);
@@ -542,6 +594,19 @@ class MurkGame {
     if (targetLvl === null || targetLvl === e.lvl) {
       e.stairTimer = 0;
       if (e.team === 2) {
+        const goal = this.team2OffLevelGoal(e);
+        if (goal && (goal.x !== e.x || goal.y !== e.y)) {
+          e.offStepTimer = (e.offStepTimer || 0) - dt;
+          if (e.offStepTimer <= 0) {
+            e.offStepTimer = e.tileTime;
+            const blocked = (x, y) => !!this.entityAt(x, y, e.lvl, e);
+            const path = this.ds.findPath(e.lvl, e.x, e.y, goal.x, goal.y, blocked, 500) ||
+                         this.ds.findPath(e.lvl, e.x, e.y, goal.x, goal.y, null, 500);
+            if (path && path.length && !(goal instanceof Entity && path.length === 1)) {
+              this.team2PushThrough(e, path[0], false);
+            }
+          }
+        }
         this.checkEntityRelicPickup(e);
         this.checkEntityLairArrival(e);
       }
@@ -583,6 +648,13 @@ class MurkGame {
     for (const s of this.ds.findStairs(e.lvl, kind)) {
       const path = this.ds.findPath(e.lvl, e.x, e.y, s.x, s.y, (x, y) => !!this.entityAt(x, y, e.lvl, e), 300);
       if (path && path.length && (!best || path.length < best.length)) best = path;
+    }
+    if (!best && e.team === 2) {
+      for (const s of this.ds.findStairs(e.lvl, kind)) {
+        const path = this.ds.findPath(e.lvl, e.x, e.y, s.x, s.y, null, 300);
+        if (path && path.length && (!best || path.length < best.length)) best = path;
+      }
+      return !!best && this.team2PushThrough(e, best[0], true);
     }
     if (!best) return false;
     return this.tryStep(e, dirFromDelta(best[0].x - e.x, best[0].y - e.y));
@@ -678,6 +750,7 @@ class MurkGame {
       relic.carrier = null;
       relic.x = ent.x; relic.y = ent.y; relic.lvl = ent.lvl;
       relic.dropCooldown = voluntary ? 1.5 : 0.6;
+      relic.voluntaryDrop = !!voluntary;
     }
     if (voluntary) {
       this.toast('You set down the relic.');
@@ -724,17 +797,7 @@ class MurkGame {
       if (relic.carrier || relic.lvl !== this.lvl || relic.x !== p.x || relic.y !== p.y) continue;
       if ((relic.dropCooldown || 0) > 0) continue;
       if (p.carrying) { this.hint('carry', 'You can only carry one relic at a time.'); continue; }
-      relic.carrier = p;
-      p.carrying = relic.id;
-      this.audio.play('treasure.wav', 0.7);
-      this.renderer.burst(this.renderer.gridToWorld(p.x, p.y).x, this.renderer.gridToWorld(p.x, p.y).y + 30, relic.id === 1 ? 0xff6655 : 0x66bbff, 18, 90, 0.7, 14);
-      if (relic.id === 2) {
-        this.toast('You seized the blue treasure! Carry it back to your pad - the dungeon awakens!', 'good');
-        this.wakeAll();
-      } else {
-        this.toast('You took the treasure. Return it to your pad for a bonus.', 'good');
-      }
-      this.updateHUD();
+      this.playerTakeRelic(relic);
     }
 
     if (p.carrying && this.home && p.lvl === this.home.lvl && p.x === this.home.x && p.y === this.home.y) {
@@ -746,6 +809,39 @@ class MurkGame {
       this.dom.prompt.textContent = cell.stair === 'down' ? 'Press E to climb down' : 'Press E to climb up';
     }
     this.updateHUD();
+  }
+
+  playerTakeRelic(relic) {
+    const p = this.player;
+    relic.carrier = p;
+    p.carrying = relic.id;
+    this.audio.play('treasure.wav', 0.7);
+    const w = this.renderer.gridToWorld(p.x, p.y);
+    this.renderer.burst(w.x, w.y + 30, relic.id === 1 ? 0xff6655 : 0x66bbff, 18, 90, 0.7, 14);
+    if (relic.id === 2) {
+      if (!this.dungeonAwake) {
+        this.dungeonAwake = true;
+        this.toast('You seized the blue treasure! Carry it back to your pad - the dungeon awakens!', 'good');
+        this.wakeAll();
+      } else {
+        this.toast('You have the blue treasure again! Get it home!', 'good');
+      }
+    } else {
+      this.toast('You took the treasure. Return it to your pad for a bonus.', 'good');
+    }
+    this.updateHUD();
+  }
+
+  // Lets a standing player re-take a relic knocked from their hands once its short drop cooldown ends.
+  checkPlayerRelicRetake() {
+    const p = this.player;
+    if (!p.alive || p.moving || p.carrying || this.transition) return;
+    for (const relic of this.ds.relics) {
+      if (relic.carrier || relic.voluntaryDrop || (relic.dropCooldown || 0) > 0) continue;
+      if (relic.lvl !== p.lvl || relic.x !== p.x || relic.y !== p.y) continue;
+      this.playerTakeRelic(relic);
+      return;
+    }
   }
 
   consumeItem(cell, msg, sound) {
@@ -1086,31 +1182,30 @@ class MurkGame {
     } else if (e.team === 2) {
       const relic = this.ds.relic(2);
       const leader = this.getTeam2Leader();
-      const isLeader = (e === leader) || (!leader?.alive && e.team === 2);
+      const isLeader = this.isTeam2Lead(e);
 
-      if (isLeader) {
-        if (e.carrying === 2) {
-          // Leader brings the treasure back to their lair
-          if (e.lair) {
-            if (e.lvl !== e.lair.lvl) {
-              if (this.seekStairs(e, e.lair.lvl > e.lvl ? 'down' : 'up')) return;
-            } else if (e.x === e.lair.x && e.y === e.lair.y) {
-              this.checkEntityLairArrival(e);
-              return;
-            } else {
-              goal = { x: e.lair.x, y: e.lair.y };
-            }
+      if (e.carrying === 2) {
+        // Whoever holds the treasure brings it back to the lair
+        if (e.lair) {
+          if (e.lvl !== e.lair.lvl) {
+            if (this.seekStairs(e, e.lair.lvl > e.lvl ? 'down' : 'up')) return;
+          } else if (e.x === e.lair.x && e.y === e.lair.y) {
+            this.checkEntityLairArrival(e);
+            return;
+          } else {
+            goal = { x: e.lair.x, y: e.lair.y };
           }
-        } else if (relic && relic.carrier && relic.carrier.team !== 2) {
+        }
+      } else if (isLeader) {
+        if (relic && relic.carrier && relic.carrier.team !== 2) {
           // Enemy has the treasure, hunt them down
           if (relic.carrier.lvl !== e.lvl) {
             if (this.seekStairs(e, relic.carrier.lvl > e.lvl ? 'down' : 'up')) return;
           } else {
             goal = relic.carrier;
           }
-        } else if (relic && !relic.carrier) {
-          const atLair = e.lair && relic.lvl === e.lair.lvl && relic.x === e.lair.x && relic.y === e.lair.y;
-          if (atLair) {
+        } else if (relic && !relic.carrier && relic.lvl > 0) {
+          if (this.relicAtLair(relic, e)) {
             // Guard the lair and treasure, but also hunt nearby monsters and foes
             const foe = this.nearestHostile(e, 12);
             if (foe) {
@@ -1136,35 +1231,19 @@ class MurkGame {
           // Hunt monsters and non-friends
           goal = this.nearestHostile(e, 14);
         }
-      } else {
+      } else if (leader && leader.alive) {
         // Follower on Team 2: hover around leader, find monsters and other non-friend players
-        if (leader && leader.alive) {
-          if (leader.lvl !== e.lvl) {
-            if (this.seekStairs(e, leader.lvl > e.lvl ? 'down' : 'up')) return;
-          } else {
-            const foe = this.nearestHostile(e, 8);
-            const dToLeader = Math.abs(leader.x - e.x) + Math.abs(leader.y - e.y);
-            if (foe && dToLeader < 10) {
-              goal = foe;
-            } else if (dToLeader > 3) {
-              goal = leader;
-            } else if (foe) {
-              goal = foe;
-            }
-          }
+        if (leader.lvl !== e.lvl) {
+          if (this.seekStairs(e, leader.lvl > e.lvl ? 'down' : 'up')) return;
         } else {
-          // Leader is down: if relic is loose, go for it; otherwise hunt hostiles
-          if (relic && !relic.carrier && (relic.lvl !== e.lair?.lvl || relic.x !== e.lair?.x || relic.y !== e.lair?.y)) {
-            if (relic.lvl !== e.lvl) {
-              if (this.seekStairs(e, relic.lvl > e.lvl ? 'down' : 'up')) return;
-            } else if (e.x === relic.x && e.y === relic.y) {
-              this.checkEntityRelicPickup(e);
-              return;
-            } else {
-              goal = { x: relic.x, y: relic.y };
-            }
-          } else {
-            goal = this.nearestHostile(e, 14);
+          const foe = this.nearestHostile(e, 8);
+          const dToLeader = Math.abs(leader.x - e.x) + Math.abs(leader.y - e.y);
+          if (foe && dToLeader < 10) {
+            goal = foe;
+          } else if (dToLeader > 3) {
+            goal = leader;
+          } else if (foe) {
+            goal = foe;
           }
         }
       }
@@ -1174,17 +1253,22 @@ class MurkGame {
 
     if (goal) {
       e.stairWander = null;
+      // Creatures are engaged from range; tile goals (treasure, lair) must actually be stepped onto.
+      const creatureGoal = goal instanceof Entity;
       const blocked = (x, y) => !!this.entityAt(x, y, e.lvl, e);
       const path = this.ds.findPath(e.lvl, e.x, e.y, goal.x, goal.y, blocked, 500);
-      if (path && path.length > 1) {
+      if (path && (path.length > 1 || (!creatureGoal && path.length === 1))) {
         const step = path[0];
         if (this.tryStep(e, dirFromDelta(step.x - e.x, step.y - e.y))) return;
       } else if (path && path.length === 1) {
         e.dir = dirFromDelta(goal.x - e.x, goal.y - e.y);
         return;
+      } else if (!path && e.team === 2) {
+        const open = this.ds.findPath(e.lvl, e.x, e.y, goal.x, goal.y, null, 500);
+        if (open && (open.length > 1 || !creatureGoal) && this.team2PushThrough(e, open[0], true)) return;
       }
     }
-    if (e.kind !== 'ally' && e.stairCd <= 0) {
+    if (e.isMonster && e.stairCd <= 0) {
       if (!e.stairWander && Math.random() < 0.04) {
         const kinds = ['up', 'down'].filter((k) => (k === 'up' ? e.lvl > 1 : e.lvl < this.ds.maxlevel));
         e.stairWander = kinds[this.randInt(kinds.length)];
@@ -1202,6 +1286,7 @@ class MurkGame {
   }
 
   updateEntities(dt) {
+    for (const r of this.ds.relics) if (r.dropCooldown > 0) r.dropCooldown -= dt;
     for (const e of this.entities) {
       if (!e.alive) {
         if (e.deathTimer > 0) e.deathTimer -= dt;
@@ -1226,7 +1311,7 @@ class MurkGame {
           this.updatePlayerControl();
           if (e.moving) e.advance(e.overflow);
         }
-        for (const r of this.ds.relics) if (r.dropCooldown > 0) r.dropCooldown -= dt;
+        this.checkPlayerRelicRetake();
         continue;
       }
       if (arrived && e.team === 2) {
